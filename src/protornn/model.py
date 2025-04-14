@@ -10,6 +10,11 @@ class Block(nn.Module):
         dropout: float = 0.1,
     ) -> None:
         super().__init__()
+        self.ln_rnn = nn.LayerNorm(embed_dim)
+        self.ln_ffn = nn.LayerNorm(embed_dim)
+
+        self.rnn = nn.LSTM(embed_dim, embed_dim, batch_first=True)
+
         self.ff = nn.Sequential(
             nn.Linear(embed_dim, hidden_dim),
             nn.SiLU(),
@@ -18,8 +23,18 @@ class Block(nn.Module):
             nn.Dropout(dropout),
         )
 
-    def forward(self, x: torch.Tensor):
-        return self.ff(x)
+        self.dropout = nn.Dropout(dropout)
+
+    def forward(self, x: torch.Tensor, mask: torch.Tensor | None = None):
+        normed_x = self.ln_rnn(x)
+        rnn_out, _ = self.rnn(normed_x)
+        x = x + self.dropout(rnn_out)  # Residual connection
+
+        normed_x = self.ln_ffn(x)
+        ff_out = self.ff(normed_x)
+        x = x + ff_out  # Residual connection
+
+        return x
 
 
 class ProtoRNN(nn.Module):
@@ -46,8 +61,11 @@ class ProtoRNN(nn.Module):
         )
         self.decoder = nn.Linear(embed_dim, vocab_size)
 
+        self.dropout = nn.Dropout(dropout)
+
     def forward(self, x: torch.Tensor):
         x = self.encoder(x)
+        x = self.dropout(x)
         for block in self.blocks:
             x = block(x)
         x = self.decoder(x)
