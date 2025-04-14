@@ -1,7 +1,8 @@
 from os import PathLike
+from typing import Any
 
 import torch
-from torch.utils.data import Dataset
+from torch.utils.data import DataLoader, Dataset
 
 from protornn.tokenizer import ProteinTokenizer
 
@@ -65,3 +66,48 @@ def read_fasta(fasta_path: str | PathLike) -> list[str]:
         sequences.append("".join(current_seq))
 
     return sequences
+
+
+def create_dataloaders(
+    fasta_path: str | PathLike,
+    tokenizer: ProteinTokenizer,
+    batch_size: int = 32,
+    val_split: float = 0.1,
+    test_split: float = 0.1,
+    min_length: int = 10,
+    max_length: int = 512,
+    seed: int = 2137,
+) -> tuple[DataLoader, DataLoader, DataLoader]:
+    """Create train, validation, and test dataloaders from a FASTA file."""
+    # Read sequences
+    sequences = read_fasta(fasta_path)
+
+    # Filter out sequences that are too long or too short
+    sequences = [s for s in sequences if len(s) <= max_length and len(s) >= min_length]
+
+    # Split into train, validation, and test
+    total_size = len(sequences)
+    val_size = int(total_size * val_split)
+    test_size = int(total_size * test_split)
+    train_size = total_size - val_size - test_size
+
+    rng = torch.manual_seed(seed)
+    indices = torch.randperm(total_size, generator=rng).tolist()
+
+    train_sequences = [sequences[i] for i in indices[:train_size]]
+    val_sequences = [sequences[i] for i in indices[train_size : train_size + val_size]]
+    test_sequences = [sequences[i] for i in indices[train_size + val_size :]]
+
+    # Create datasets
+    train_dataset = ProteinSequenceDataset(train_sequences, tokenizer, max_length)
+    val_dataset = ProteinSequenceDataset(val_sequences, tokenizer, max_length)
+    test_dataset = ProteinSequenceDataset(test_sequences, tokenizer, max_length)
+
+    loader_kwargs: dict[str, Any] = dict(batch_size=batch_size, pin_memory=True)
+
+    # Create dataloaders
+    train_loader = DataLoader(train_dataset, shuffle=True, **loader_kwargs)
+    val_loader = DataLoader(val_dataset, shuffle=False, **loader_kwargs)
+    test_loader = DataLoader(test_dataset, shuffle=False, **loader_kwargs)
+
+    return train_loader, val_loader, test_loader
