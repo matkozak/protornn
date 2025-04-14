@@ -7,13 +7,21 @@ class Block(nn.Module):
         self,
         embed_dim: int,
         hidden_dim: int,
+        use_attention: bool = True,
         dropout: float = 0.1,
     ) -> None:
         super().__init__()
         self.ln_rnn = nn.LayerNorm(embed_dim)
+        self.ln_attn = nn.LayerNorm(embed_dim)
         self.ln_ffn = nn.LayerNorm(embed_dim)
 
         self.rnn = nn.LSTM(embed_dim, embed_dim, batch_first=True)
+
+        self.use_attention = use_attention
+        if use_attention:
+            self.attention = nn.MultiheadAttention(
+                embed_dim=embed_dim, num_heads=1, dropout=dropout, batch_first=True
+            )
 
         self.ff = nn.Sequential(
             nn.Linear(embed_dim, hidden_dim),
@@ -30,6 +38,18 @@ class Block(nn.Module):
         rnn_out, _ = self.rnn(normed_x)
         x = x + self.dropout(rnn_out)  # Residual connection
 
+        if self.use_attention:
+            normed_x = self.ln_attn(x)
+            if mask is None:
+                seq_len = x.size(1)  # (batch_size, sequence_length, embed_dim)
+                mask = torch.triu(
+                    torch.ones((seq_len, seq_len), device=x.device, dtype=torch.bool),
+                    diagonal=1,
+                )
+            # TODO: padding mask
+            attn_out, _ = self.attention(normed_x, normed_x, normed_x, attn_mask=mask)
+            x = x + self.dropout(attn_out)  # Residual connection
+
         normed_x = self.ln_ffn(x)
         ff_out = self.ff(normed_x)
         x = x + ff_out  # Residual connection
@@ -43,7 +63,7 @@ class ProtoRNN(nn.Module):
         vocab_size: int,
         embed_dim: int = 64,
         hidden_dim: int = 1024,
-        num_layers: int = 1,
+        num_layers: int = 3,
         dropout: float = 0.1,
     ) -> None:
         super().__init__()
@@ -54,6 +74,7 @@ class ProtoRNN(nn.Module):
                 Block(
                     embed_dim=embed_dim,
                     hidden_dim=hidden_dim,
+                    use_attention=(i == num_layers - 2),
                     dropout=dropout,
                 )
                 for i in range(num_layers)
@@ -64,10 +85,16 @@ class ProtoRNN(nn.Module):
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, x: torch.Tensor):
+        seq_len = x.size(1)
+        mask = torch.triu(
+            torch.ones((seq_len, seq_len), device=x.device, dtype=torch.bool),
+            diagonal=1,
+        )
+
         x = self.encoder(x)
         x = self.dropout(x)
         for block in self.blocks:
-            x = block(x)
+            x = block(x, mask)
         x = self.decoder(x)
 
         return x
