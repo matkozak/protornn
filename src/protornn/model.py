@@ -65,6 +65,7 @@ class ProtoRNN(nn.Module):
         hidden_dim: int = 1024,
         num_layers: int = 3,
         dropout: float = 0.1,
+        tie_weights: bool = False,
     ) -> None:
         super().__init__()
 
@@ -81,6 +82,9 @@ class ProtoRNN(nn.Module):
             ]
         )
         self.decoder = nn.Linear(embed_dim, vocab_size)
+
+        if tie_weights:
+            self.decoder.weight = self.encoder.weight
 
         self.dropout = nn.Dropout(dropout)
 
