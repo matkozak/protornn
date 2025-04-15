@@ -41,3 +41,7 @@ class ProteinTokenizer:
     def decode(self, indices: Sequence[int]) -> str:
         decoded = "".join(self.idx_to_tok.get(idx, UNK_TOK) for idx in indices)
         return decoded
+
+    @property
+    def pad_idx(self):
+        return self.tok_to_idx[PAD_TOK]
