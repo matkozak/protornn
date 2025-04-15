@@ -33,21 +33,32 @@ class Block(nn.Module):
 
         self.dropout = nn.Dropout(dropout)
 
-    def forward(self, x: torch.Tensor, mask: torch.Tensor | None = None):
+    def forward(
+        self,
+        x: torch.Tensor,
+        attn_mask: torch.Tensor | None = None,
+        padding_mask: torch.Tensor | None = None,
+    ):
         normed_x = self.ln_rnn(x)
         rnn_out, _ = self.rnn(normed_x)
         x = x + self.dropout(rnn_out)  # Residual connection
 
         if self.use_attention:
             normed_x = self.ln_attn(x)
-            if mask is None:
+            if attn_mask is None:
                 seq_len = x.size(1)  # (batch_size, sequence_length, embed_dim)
-                mask = torch.triu(
+                attn_mask = torch.triu(
                     torch.ones((seq_len, seq_len), device=x.device, dtype=torch.bool),
                     diagonal=1,
                 )
-            # TODO: padding mask
-            attn_out, _ = self.attention(normed_x, normed_x, normed_x, attn_mask=mask)
+            # TODO: evaluate q, k, v norm
+            attn_out, _ = self.attention(
+                normed_x,
+                normed_x,
+                normed_x,
+                attn_mask=attn_mask,
+                key_padding_mask=padding_mask,
+            )
             x = x + self.dropout(attn_out)  # Residual connection
 
         normed_x = self.ln_ffn(x)
@@ -66,10 +77,11 @@ class ProtoRNN(nn.Module):
         num_layers: int = 3,
         dropout: float = 0.1,
         tie_weights: bool = False,
+        pad_idx: int = 0,
     ) -> None:
         super().__init__()
-
-        self.encoder = nn.Embedding(vocab_size, embed_dim)
+        self.pad_idx = pad_idx
+        self.encoder = nn.Embedding(vocab_size, embed_dim, padding_idx=pad_idx)
         self.blocks = nn.ModuleList(
             [
                 Block(
@@ -90,15 +102,16 @@ class ProtoRNN(nn.Module):
 
     def forward(self, x: torch.Tensor):
         seq_len = x.size(1)
-        mask = torch.triu(
+        attn_mask = torch.triu(
             torch.ones((seq_len, seq_len), device=x.device, dtype=torch.bool),
             diagonal=1,
         )
+        padding_mask = x == self.pad_idx
 
         x = self.encoder(x)
         x = self.dropout(x)
         for block in self.blocks:
-            x = block(x, mask)
+            x = block(x, attn_mask, padding_mask)
         x = self.decoder(x)
 
         return x
