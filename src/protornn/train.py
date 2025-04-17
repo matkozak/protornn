@@ -34,7 +34,7 @@ def train_epoch(
     total_size = 0
 
     pbar = tqdm(data_loader, leave=False, position=1, desc="Training batch")
-    for batch in pbar:
+    for i, batch in enumerate(pbar):
         # zero the parameter gradients
         optimizer.zero_grad()
 
@@ -49,6 +49,8 @@ def train_epoch(
         optimizer.step()
         total_loss += loss.item() * len(x)
         total_size += len(x)
+        if i % 10 == 0:
+            logger.debug("Step %d / %d, loss: %#.3g", i, pbar.total, loss.item())
 
     return total_loss / total_size
 
@@ -95,14 +97,24 @@ def train_model(
 
     pbar = tqdm(range(num_epochs), desc="Epoch", leave=False, initial=1)
     for epoch in pbar:
+        logger.debug("Starting epoch %d / %d...", epoch + 1, num_epochs)
         train_loss = train_epoch(model, train_loader, optimizer, criterion, device)
         val_loss = eval_epoch(model, val_loader, criterion, device)
         stopper.step(val_loss)
 
+        logger.debug(
+            "Finished epoch %d / %d - train loss: %#.3g, validation loss: %#.3g",
+            epoch + 1,
+            num_epochs,
+            train_loss,
+            val_loss,
+        )
         metrics: Metrics = {"train/loss": train_loss, "val/loss": val_loss}
         yield metrics
 
         if stopper.save and checkpoint_path is not None:
             torch.save(model.state_dict(), checkpoint_path)
+            logger.debug("Checkpoint saved to %s", checkpoint_path)
         if stopper.stop and early_stop:
+            logger.debug("No improvement for %d epochs, breaking.", stopper.patience)
             break
