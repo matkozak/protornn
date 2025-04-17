@@ -25,7 +25,7 @@ class ProteinSequenceDataset(Dataset):
 
     def __getitem__(self, idx) -> tuple[torch.Tensor, torch.Tensor]:
         sequence = self.sequences[idx]
-        dt = torch.uint8
+        dt = torch.long
 
         # Tokenize with BOS and EOS tokens
         input = self.tokenizer.encode(
