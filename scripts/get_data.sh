@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Define data locations
-DATA_DIR="data/external"
+DATA_DIR="data/"
 
 # Create directory for downloads
 mkdir -p ${DATA_DIR}
