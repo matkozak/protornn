@@ -76,6 +76,7 @@ def create_dataloaders(
     test_split: float = 0.1,
     min_length: int = 10,
     max_length: int = 512,
+    sample: float = 1.0,
     seed: int = 2137,
 ) -> tuple[DataLoader, DataLoader, DataLoader]:
     """Create train, validation, and test dataloaders from a FASTA file."""
@@ -85,14 +86,14 @@ def create_dataloaders(
     # Filter out sequences that are too long or too short
     sequences = [s for s in sequences if len(s) <= max_length and len(s) >= min_length]
 
-    # Split into train, validation, and test
-    total_size = len(sequences)
-    val_size = int(total_size * val_split)
-    test_size = int(total_size * test_split)
-    train_size = total_size - val_size - test_size
-
     rng = torch.manual_seed(seed)
-    indices = torch.randperm(total_size, generator=rng).tolist()
+    sample_size = int(len(sequences) * sample)
+    indices = torch.randperm(len(sequences), generator=rng).tolist()[:sample_size]
+
+    # Split into train, validation, and test
+    val_size = int(sample_size * val_split)
+    test_size = int(sample_size * test_split)
+    train_size = sample_size - val_size - test_size
 
     train_sequences = [sequences[i] for i in indices[:train_size]]
     val_sequences = [sequences[i] for i in indices[train_size : train_size + val_size]]
