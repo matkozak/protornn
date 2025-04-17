@@ -6,11 +6,11 @@ from protornn.data import create_dataloaders
 from protornn.model import ProtoRNN
 from protornn.tokenizer import ProteinTokenizer
 from protornn.train import train_model
-from protornn.utils import setup_logging
+from protornn.utils import get_device, setup_logging
 
 
 def main():
-    device = torch.device("cpu")
+    device = get_device()
     tokenizer = ProteinTokenizer()
     train_data, val_data, test_data = create_dataloaders(
         "data/uniprot_sprot.fasta", tokenizer, batch_size=32, sample=0.05

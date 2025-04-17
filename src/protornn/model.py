@@ -59,6 +59,7 @@ class Block(nn.Module):
                 attn_mask=attn_mask,
                 key_padding_mask=padding_mask,
             )
+            x = x + 0  # this stops MPS from having a fit, pls dont ask me why
             x = x + self.dropout(attn_out)  # Residual connection
 
         normed_x = self.ln_ffn(x)
