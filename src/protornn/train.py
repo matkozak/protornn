@@ -1,6 +1,6 @@
 import logging
 import os
-from typing import TypedDict
+from dataclasses import dataclass
 
 import torch
 from torch import nn
@@ -12,13 +12,12 @@ from .model import ProtoRNN
 from .stopper import EarlyStopper
 
 logger = logging.getLogger(__name__)
-Metrics = TypedDict(
-    "Metrics",
-    {
-        "train/loss": float,
-        "val/loss": float,
-    },
-)
+
+
+@dataclass(frozen=True, slots=True)
+class EpochMetrics:
+    training_loss: float
+    validation_loss: float
 
 
 def train_epoch(
@@ -109,7 +108,7 @@ def train_model(
             train_loss,
             val_loss,
         )
-        metrics: Metrics = {"train/loss": train_loss, "val/loss": val_loss}
+        metrics = EpochMetrics(train_loss, val_loss)
         yield metrics
 
         if stopper.save and checkpoint_path is not None:
