@@ -1,7 +1,10 @@
 import logging
+import random
+import string
 from os import PathLike
 
 import torch
+from wonderwords import RandomWord
 
 
 def get_device() -> torch.device:
@@ -13,6 +16,20 @@ def get_device() -> torch.device:
     else:
         dev = "cpu"
     return torch.device(dev)
+
+
+def get_run_name() -> str:
+    r = RandomWord()
+    chars = string.ascii_lowercase + string.digits
+    adj = r.word(
+        word_min_length=3, word_max_length=7, include_parts_of_speech=["adjective"]
+    )
+    noun = r.word(
+        word_min_length=5, word_max_length=7, include_parts_of_speech=["noun"]
+    )
+    suffix = "".join(random.choices(chars, k=5))
+    name = "-".join([adj, noun, suffix])
+    return name
 
 
 def get_dtype(dtype: str | torch.dtype) -> torch.dtype:

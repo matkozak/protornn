@@ -1,5 +1,6 @@
 from dataclasses import asdict
-from datetime import datetime
+from os import PathLike
+from pathlib import Path
 
 import torch
 from torch.utils.tensorboard.writer import SummaryWriter
@@ -8,13 +9,13 @@ from protornn.data import create_dataloaders
 from protornn.model import ProtoRNN
 from protornn.tokenizer import ProteinTokenizer
 from protornn.train import train_model
-from protornn.utils import get_device, setup_logging
+from protornn.utils import get_device, get_run_name, setup_logging
 
 
-def main():
+def main(run_path: str | PathLike):
     device = get_device()
     tokenizer = ProteinTokenizer()
-    writer = SummaryWriter()
+    writer = SummaryWriter(run_path)
     train_data, val_data, test_data = create_dataloaders(
         "data/uniprot_sprot.fasta", tokenizer, batch_size=32, sample=0.01
     )
@@ -28,5 +29,6 @@ def main():
 
 
 if __name__ == "__main__":
-    setup_logging(f"runs/{datetime.now().isoformat(timespec='minutes')}_train.log")
-    main()
+    run_path = Path("runs") / get_run_name()
+    setup_logging(run_path.with_suffix(".log"))
+    main(run_path)
