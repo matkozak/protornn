@@ -23,7 +23,5 @@ def main():
 
 
 if __name__ == "__main__":
-    setup_logging(
-        f"checkpoints/{datetime.now().isoformat(timespec='minutes')}_train.log"
-    )
+    setup_logging(f"runs/{datetime.now().isoformat(timespec='minutes')}_train.log")
     main()
