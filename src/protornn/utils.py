@@ -15,6 +15,50 @@ def get_device() -> torch.device:
     return torch.device(dev)
 
 
+def get_dtype(dtype: str | torch.dtype) -> torch.dtype:
+    """Convert string representation of PyTorch dtype to `torch.dtype` object
+
+    Args:
+        dtype: string representation of a valid torch dtype or a `torch.dtype`
+            object (no-op)
+
+    Raises:
+        ValueError: if `dtype` is not a valid dtype or string representation
+
+    Returns:
+        A valid torch dtype
+
+    Examples:
+        >>> get_torch_dtype(torch.float32)
+        torch.float32
+
+        >>> get_torch_dtype('float32')
+        torch.float32
+
+        >>> get_torch_dtype('torch.Float32')
+        torch.float32
+
+        >>> get_torch_dtype('Tensor')
+        ValueError: 'Tensor' is not a valid torch dtype
+    """
+    if isinstance(dtype, str):
+        dtype_str = dtype.lower().removeprefix("torch.")
+        try:
+            attr = getattr(torch, dtype_str)
+            if isinstance(attr, torch.dtype):
+                return attr
+            else:
+                raise AttributeError
+        except AttributeError:
+            raise ValueError(f"'{dtype}' is not a valid torch dtype")
+
+    elif isinstance(dtype, torch.dtype):
+        return dtype
+
+    else:
+        raise ValueError(f"Expected torch.dtype or string, got {type(dtype)}")
+
+
 def setup_logging(
     logfile: str | PathLike | None = None,
     stream_level: int = logging.INFO,
