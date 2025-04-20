@@ -26,6 +26,7 @@ def train_epoch(
     optimizer: Optimizer,
     criterion: nn.CrossEntropyLoss,
     device: torch.device,
+    log_freq: int = 10,
 ) -> float:
     """Train model for one epoch and return average loss."""
     model.train()
@@ -48,8 +49,9 @@ def train_epoch(
         optimizer.step()
         total_loss += loss.item() * len(x)
         total_size += len(x)
-        if i % 10 == 0:
+        if i % log_freq == 0:
             logger.debug("Step %d / %d, loss: %#.3g", i, pbar.total, loss.item())
+            pbar.set_postfix({"Batch loss": f"{loss.item():#.3g}"})
 
     return total_loss / total_size
 
@@ -108,6 +110,7 @@ def train_model(
             train_loss,
             val_loss,
         )
+        pbar.set_postfix({"Validation loss": f"{val_loss:#.3g}"})
         metrics = EpochMetrics(train_loss, val_loss)
         yield metrics
 
