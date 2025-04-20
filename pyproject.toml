@@ -15,3 +15,5 @@ train = [
     "tensorboard>=2.19.0",
     "wonderwords>=2.2.0",
 ]
+[project.scripts]
+protornn = "protornn.cli:cli"

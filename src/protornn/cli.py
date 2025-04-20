@@ -3,14 +3,15 @@ from dataclasses import asdict
 from os import PathLike
 from pathlib import Path
 
+import click
 import torch
 from torch.utils.tensorboard.writer import SummaryWriter
 
-from protornn.data import create_dataloaders
-from protornn.model import ProtoRNN
-from protornn.tokenizer import ProteinTokenizer
-from protornn.train import train_model
-from protornn.utils import get_device, get_dtype, get_run_name, setup_logging
+from .data import create_dataloaders
+from .model import ProtoRNN
+from .tokenizer import ProteinTokenizer
+from .train import train_model
+from .utils import get_device, get_dtype, get_run_name, setup_logging
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +63,36 @@ def run_experiment(
     writer.close()
 
 
-if __name__ == "__main__":
+@click.group()
+def cli():
+    pass
+
+
+@cli.command("train")
+@click.argument("data_path", type=click.Path(exists=True, dir_okay=False))
+@click.option("--batch-size", default=32, help="Training batch size")
+@click.option("--sample-size", default=1.0, help="Fraction of dataset to use")
+@click.option("--embed-dim", default=64, help="Embedding dimension")
+@click.option("--hidden-dim", default=1024, help="Hidden layer dimension")
+@click.option("--num-layers", default=3, help="Number of RNN layers")
+@click.option("--dropout", default=0.1, help="Dropout probability")
+@click.option("--tie-weights", is_flag=True, help="Tie encoder-decoder weights")
+@click.option("--dtype", default="float32", help="Model dtype")
+@click.option("--learning-rate", default=1e-3, help="Learning rate")
+@click.option("--max-epochs", default=100, help="Maximum training epochs")
+def train(data_path: Path, **kwargs):
     run_dir = Path("runs") / get_run_name()
     setup_logging(run_dir.with_suffix(".log"))
-    run_experiment("data/uniprot_sprot.fasta", run_dir)
+    run_experiment(data_path, run_dir, **kwargs)
+
+
+@cli.command()
+@click.argument("checkpoint", type=click.Path(exists=True, path_type=Path))
+@click.argument("sequence", type=str)
+def predict(checkpoint: Path, sequence: str):
+    # TODO: Implement inference
+    pass
+
+
+if __name__ == "__main__":
+    cli()
