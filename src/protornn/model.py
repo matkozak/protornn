@@ -113,6 +113,7 @@ class ProtoRNN(nn.Module):
         x = self.dropout(x)
         for block in self.blocks:
             x = block(x, attn_mask, padding_mask)
+            x = x * (~padding_mask).unsqueeze(-1)
         x = self.decoder(x)
 
         return x
