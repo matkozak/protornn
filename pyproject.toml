@@ -21,3 +21,8 @@ train = [
 ]
 [project.scripts]
 protornn = "protornn.cli:cli"
+
+[dependency-groups]
+dev = [
+    "ipython>=9.2.0",
+]
