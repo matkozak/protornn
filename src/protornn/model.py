@@ -53,9 +53,9 @@ class Block(nn.Module):
                 )
             # TODO: evaluate q, k, v norm
             attn_out, _ = self.attention(
-                normed_x,
-                normed_x,
-                normed_x,
+                query=normed_x,
+                key=normed_x,
+                value=normed_x,
                 attn_mask=attn_mask,
                 key_padding_mask=padding_mask,
             )
