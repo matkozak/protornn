@@ -45,12 +45,6 @@ class Block(nn.Module):
 
         if self.use_attention:
             normed_x = self.ln_attn(x)
-            if attn_mask is None:
-                seq_len = x.size(1)  # (batch_size, sequence_length, embed_dim)
-                attn_mask = torch.triu(
-                    torch.ones((seq_len, seq_len), device=x.device, dtype=torch.bool),
-                    diagonal=1,
-                )
             # TODO: evaluate q, k, v norm
             attn_out, _ = self.attention(
                 query=normed_x,
