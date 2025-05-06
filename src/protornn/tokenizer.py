@@ -38,6 +38,14 @@ class ProteinTokenizer:
 
         return encoded
 
+    def batch_encode(
+        self, sequences: Sequence[str], *args, **kwargs
+    ) -> list[list[int]]:
+        if isinstance(sequences, str):
+            sequences = [sequences]
+        encoded = [self.encode(seq, *args, **kwargs) for seq in sequences]
+        return encoded
+
     def decode(self, indices: Sequence[int]) -> str:
         decoded = "".join(self.idx_to_tok.get(idx, UNK_TOK) for idx in indices)
         return decoded
