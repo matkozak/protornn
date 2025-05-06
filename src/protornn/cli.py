@@ -23,6 +23,7 @@ def run_experiment(
     # Data params
     batch_size: int = 32,
     sample_size: float = 1.0,
+    pack_sequences: bool = True,
     # Model params
     embed_dim: int = 64,
     hidden_dim: int = 1024,
@@ -43,6 +44,7 @@ def run_experiment(
         tokenizer,
         batch_size=batch_size,
         sample=sample_size,
+        pack_sequences=pack_sequences,
     )
 
     model = ProtoRNN(
@@ -76,10 +78,19 @@ def cli():
 @click.option("--hidden-dim", default=1024, help="Hidden layer dimension")
 @click.option("--num-layers", default=3, help="Number of RNN layers")
 @click.option("--dropout", default=0.1, help="Dropout probability")
-@click.option("--tie-weights", is_flag=True, help="Tie encoder-decoder weights")
 @click.option("--dtype", default="float32", help="Model dtype")
 @click.option("--learning-rate", default=1e-3, help="Learning rate")
 @click.option("--max-epochs", default=100, help="Maximum training epochs")
+@click.option(
+    "--tie-weights/--no-tie-weights",
+    default=False,
+    help="Tie encoder-decoder weights",
+)
+@click.option(
+    "--pack-sequences/--no-pack-sequences",
+    default=True,
+    help="Batch by sequence length to reduce padding",
+)
 def train(data_path: Path, **kwargs):
     run_dir = Path("runs") / get_run_name()
     setup_logging(run_dir.with_suffix(".log"))
