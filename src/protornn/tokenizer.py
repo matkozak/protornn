@@ -1,10 +1,10 @@
 from typing import Sequence
 
-PAD_TOK = "<pad>"
-UNK_TOK = "<unk>"
-BOS_TOK = "<bos>"
-EOS_TOK = "<eos>"
-MASK_TOK = "<mask>"
+PAD_TOK = "_"
+UNK_TOK = "?"
+BOS_TOK = "^"
+EOS_TOK = "*"
+MASK_TOK = "#"
 
 
 class ProteinTokenizer:
@@ -23,7 +23,7 @@ class ProteinTokenizer:
         add_eos: bool = False,
         pad_to: int | None = None,
     ) -> list[int]:
-        tokens = list(sequence)
+        tokens = list(sequence.upper())
 
         if add_bos:
             tokens.insert(0, BOS_TOK)
@@ -47,7 +47,10 @@ class ProteinTokenizer:
         encoded = [self.encode(seq, *args, **kwargs) for seq in sequences]
         return encoded
 
-    def decode(self, indices: Sequence[int]) -> str:
+    def decode(self, indices: Sequence[int], strip_special: bool = True) -> str:
+        if strip_special:
+            special = {self.tok_to_idx[tok] for tok in self.special_tokens}
+            indices = [idx for idx in indices if idx not in special]
         decoded = "".join(self.idx_to_tok.get(idx, UNK_TOK) for idx in indices)
         return decoded
 
