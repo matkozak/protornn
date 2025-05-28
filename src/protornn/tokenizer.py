@@ -4,11 +4,12 @@ PAD_TOK = "<pad>"
 UNK_TOK = "<unk>"
 BOS_TOK = "<bos>"
 EOS_TOK = "<eos>"
+MASK_TOK = "<mask>"
 
 
 class ProteinTokenizer:
     def __init__(self):
-        self.special_tokens = (PAD_TOK, UNK_TOK, BOS_TOK, EOS_TOK)
+        self.special_tokens = (PAD_TOK, UNK_TOK, BOS_TOK, EOS_TOK, MASK_TOK)
         self.aa_tokens = "ACDEFGHIKLMNPQRSTVWY"
         self.vocab = (*self.special_tokens, *self.aa_tokens)
 
