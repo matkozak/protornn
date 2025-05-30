@@ -1,5 +1,45 @@
 import torch
 from torch import nn
+from torch.nn import functional as F
+
+
+class SelfAttention(nn.Module):
+    def __init__(
+        self,
+        embed_dim: int,
+        num_heads: int = 1,
+        dropout: float = 0.1,
+    ):
+        """Standard multi-head self-attention implementation"""
+        super().__init__()
+        if embed_dim % num_heads != 0:
+            raise ValueError("Attention size must be divisible by number of heads")
+        self.embed_dim = embed_dim
+        self.num_heads = num_heads
+        self.qkv_proj = nn.Linear(embed_dim, embed_dim * 3)
+        self.out_proj = nn.Linear(embed_dim, embed_dim)
+        self.attn_dropout = dropout
+        self.out_dropout = nn.Dropout(dropout)
+
+    def forward(
+        self, x: torch.Tensor, attn_mask: torch.Tensor | None = None
+    ) -> torch.Tensor:
+        B, L = x.size()[:2]
+        E, H_n = self.embed_dim, self.num_heads
+        H_d = E // H_n
+        q, k, v = self.qkv_proj(x).split(self.embed_dim, dim=-1)
+        q = q.view(B, L, H_n, H_d).transpose(1, 2)  # B, H_n, L, H_d
+        k = k.view(B, L, H_n, H_d).transpose(1, 2)
+        v = v.view(B, L, H_n, H_d).transpose(1, 2)
+
+        attn_dropout = self.attn_dropout if self.training else 0
+        attn = F.scaled_dot_product_attention(
+            q, k, v, attn_mask=attn_mask, dropout_p=attn_dropout
+        )
+        # Reshape and project output
+        attn = attn.transpose(1, 2).view(B, L, E).contiguous()
+        attn = self.out_dropout(self.out_proj(attn))
+        return attn
 
 
 class Block(nn.Module):
@@ -19,9 +59,7 @@ class Block(nn.Module):
 
         self.use_attention = use_attention
         if use_attention:
-            self.attention = nn.MultiheadAttention(
-                embed_dim=embed_dim, num_heads=1, dropout=dropout, batch_first=True
-            )
+            self.attention = SelfAttention(embed_dim=embed_dim, dropout=dropout)
 
         self.ff = nn.Sequential(
             nn.Linear(embed_dim, hidden_dim),
@@ -37,7 +75,6 @@ class Block(nn.Module):
         self,
         x: torch.Tensor,
         attn_mask: torch.Tensor | None = None,
-        padding_mask: torch.Tensor | None = None,
     ):
         normed_x = self.ln_rnn(x)
         rnn_out, _ = self.rnn(normed_x)
@@ -46,13 +83,7 @@ class Block(nn.Module):
         if self.use_attention:
             normed_x = self.ln_attn(x)
             # TODO: evaluate q, k, v norm
-            attn_out, _ = self.attention(
-                query=normed_x,
-                key=normed_x,
-                value=normed_x,
-                attn_mask=attn_mask,
-                key_padding_mask=padding_mask,
-            )
+            attn_out = self.attention(normed_x, attn_mask)
             x = x + 0  # this stops MPS from having a fit, pls dont ask me why
             x = x + self.dropout(attn_out)  # Residual connection
 
@@ -97,17 +128,17 @@ class ProtoRNN(nn.Module):
 
     def forward(self, x: torch.Tensor):
         seq_len = x.size(1)
-        attn_mask = torch.triu(
-            torch.ones((seq_len, seq_len), device=x.device, dtype=torch.bool),
-            diagonal=1,
-        )
-        padding_mask = x == self.pad_idx
-
+        causal_mask = torch.tril(
+            torch.ones((1, 1, seq_len, seq_len), device=x.device, dtype=torch.bool),
+            diagonal=0,
+        )  # broadcastable to (batch_size, num_heads, seq_len, seq_len)
+        padding_mask = x != self.pad_idx  # (batch_size, seq_len)
+        attn_mask = causal_mask & padding_mask.unsqueeze(1).unsqueeze(1)
         x = self.encoder(x)
         x = self.dropout(x)
         for block in self.blocks:
-            x = block(x, attn_mask, padding_mask)
-            x = x * (~padding_mask).unsqueeze(-1)
+            x = block(x, attn_mask)
+            x = x * padding_mask.unsqueeze(-1)
         x = self.decoder(x)
 
         return x
